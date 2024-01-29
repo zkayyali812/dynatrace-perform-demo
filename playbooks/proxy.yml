@@ -15,6 +15,9 @@
     create_toxic: false
     disable_toxic: true
 
+    # Default vars ensure proxy w/o latency
+    # 
+
   tasks:
     - name: Ensure proxy exists
       cloin.toxiproxy.proxy:
