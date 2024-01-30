@@ -26,7 +26,15 @@
       condition: |
         event.title == "SwingSight latency" 
       action:
-        debug:
+        run_job_template:
+          name: "SwingSight | Configure proxy"
+          organization: Default
+            job_args:
+              extra_vars:
+                disable_proxy: false
+                create_toxic: false
+                disable_toxic: true
+                
 
     - name: Catch all remaining
       condition: event.meta is defined
