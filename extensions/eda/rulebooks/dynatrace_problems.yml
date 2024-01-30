@@ -24,7 +24,7 @@
 
     - name: SwingSight request latency
       condition: |
-        event.title == "SwingSight latency" 
+        event.title == "Http monitor performance threshold violation" 
       action:
         run_job_template:
           name: "SwingSight | Configure proxy"
