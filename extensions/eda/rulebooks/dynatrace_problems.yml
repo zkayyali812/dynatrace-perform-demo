@@ -29,11 +29,11 @@
         run_job_template:
           name: "SwingSight | Configure proxy"
           organization: Default
-            job_args:
-              extra_vars:
-                disable_proxy: false
-                create_toxic: false
-                disable_toxic: true
+          job_args:
+            extra_vars:
+              disable_proxy: false
+              create_toxic: false
+              disable_toxic: true
                 
 
     - name: Catch all remaining
