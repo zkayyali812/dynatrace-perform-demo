@@ -1,0 +1,55 @@
+---
+- name: Configure proxy
+  hosts: localhost
+  gather_facts: no
+  vars:
+    dt_tenant: 
+    dt_token:
+    prb_latency: false
+    prb_outage: false
+
+  tasks:
+
+  - name: Create Dynatrace problem event (latency)
+    when: prb_latency
+    ansible.builtin.uri:
+      url: "https://{{ dt_tenant }}/api/v1/events/?Api-Token={{ dt_token }}"
+      method: POST
+      body_format: json
+      body: 
+        title: "Http monitor performance threshold violation"
+        source: "Custom Source"
+        description: "Performance threshold violation detected for Http monitor"
+        eventType: "PERFORMANCE_EVENT"
+        attachRules:
+          entityIds: ["HTTP_CHECK-DEE37DAA3C13D26E"]
+        customProperties:
+          app: "swingsight"
+      headers:
+        Content-Type: "application/json"
+    register: response
+
+  - name: Create Dynatrace problem event (outage)
+    when: prb_outage
+    ansible.builtin.uri:
+      url: "https://{{ dt_tenant }}/api/v1/events/?Api-Token={{ dt_token }}"
+      method: POST
+      body_format: json
+      body:
+        title: "Http monitor global outage"
+        source: "Ansible Automation"
+        description: "Global outage detected for Http monitor"
+        eventType: "AVAILABILITY_EVENT"
+        attachRules:
+          entityIds: ["HTTP_CHECK-DEE37DAA3C13D26E"]
+        customProperties:
+          app: "swingsight"
+          impactLevel: "APPLICATION"
+          severityLevel: "AVAILABILITY"
+      headers:
+        Content-Type: "application/json"
+    register: response
+
+  - name: Print response from Dynatrace API
+    debug:
+      var: response
