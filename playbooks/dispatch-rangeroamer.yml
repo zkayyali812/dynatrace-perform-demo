@@ -17,6 +17,11 @@
         Content-Type: "application/json"
     register: query_total_balls_hit
 
+  - name: Extract the last non-zero and non-null value
+    ansible.builtin.set_fact:
+      last_valid_value: "{{ (query_total_balls_hit.json.result[0].data[0].values | reject('eq', null) | reject('eq', 0) | list | last) | default('No valid data found') }}"
+
+
   - name: Fetch metrics from the application
     ansible.builtin.uri:
       url: "{{ swingsight_url }}"
