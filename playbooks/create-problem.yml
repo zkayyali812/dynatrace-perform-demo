@@ -56,7 +56,7 @@
   - name: Create Dynatrace problem event (swingsight)
     when: prb_swingsight
     ansible.builtin.uri:
-      url: "https://{{ dt_tenant }}.live.dynatrace.com/api/v1/events/?Api-Token={{ dt_token }}"
+      url: "https://{{ dt_tenant }}/api/v1/events/?Api-Token={{ dt_token }}"
       validate_certs: false
       method: POST
       body_format: json
