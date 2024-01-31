@@ -7,6 +7,7 @@
     dt_token:
     prb_latency: false
     prb_outage: false
+    prb_swingsight: false
 
   tasks:
 
@@ -46,6 +47,23 @@
           app: "swingsight"
           impactLevel: "APPLICATION"
           severityLevel: "AVAILABILITY"
+      headers:
+        Content-Type: "application/json"
+    register: response
+
+  - name: Create Dynatrace problem event (swingsight)
+    when: prb_swingsight
+    ansible.builtin.uri:
+      url: "https://{{ dt_tenant }}.live.dynatrace.com/api/v1/events/?Api-Token={{ dt_token }}"
+      method: POST
+      body_format: json
+      body:
+        title: "Too many golf balls"
+        description: "Simulation of a problem with too many golf balls."
+        eventType: "CUSTOM_ALERT"
+        source: "Ansible Automation"
+        attachRules:
+          entityIds: ["CLOUD_APPLICATION_INSTANCE-44D3E7139B0DC74D"]
       headers:
         Content-Type: "application/json"
     register: response
