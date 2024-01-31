@@ -1,0 +1,17 @@
+- name: Go get the golf balls
+  hosts: localhost
+  gather_facts: false
+  vars:
+    dt_tenant:
+    dt_token:
+
+  tasks:
+
+  - name: Query the total_balls_hit metric from Dynatrace
+    ansible.builtin.uri:
+      url: "https://{{ dt_tenant }}/api/v2/metrics/query?metricSelector=total_balls_hit"
+      method: GET
+      headers:
+        Authorization: "Api-Token {{ dt_token }}"
+        Content-Type: "application/json"
+    register: query_total_balls_hit
