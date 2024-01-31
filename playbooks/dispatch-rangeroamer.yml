@@ -19,7 +19,7 @@
 
   - name: debug
     ansible.builtin.debug
-      var: query_total_balls_hit.json.result[0].data[0].values
+      msg: "{{ query_total_balls_hit.json.result[0].data[0].values }}"
 
   - name: Extract the last non-zero and non-null value
     ansible.builtin.set_fact:
