@@ -17,32 +17,7 @@
         Content-Type: "application/json"
     register: query_total_balls_hit
 
-  - name: debug
-    ansible.builtin.debug:
-      msg: "{{ query_total_balls_hit.json.result[0].data[0].values }}"
-
-  - name: Extract the last non-zero and non-null value
-    ansible.builtin.set_fact:
-      last_valid_value: "{{ (query_total_balls_hit.json.result[0].data[0].values | reject('eq', null) | reject('eq', 0) | list | last) | default('No valid data found') }}"
-
-
-  - name: Fetch metrics from the application
+  - name: Update metrics
     ansible.builtin.uri:
-      url: "{{ swingsight_url }}"
+      url: "{{ swingsight_url }}/clear-data"
       method: GET
-      return_content: yes
-    register: metrics_response
-
-  - name: Parse and set facts for metrics
-    ansible.builtin.set_fact:
-      count_zone_1: "{{ metrics_response.content | regex_search('count_zone_1 (\\d+)') | first | int }}"
-      count_zone_2: "{{ metrics_response.content | regex_search('count_zone_2 (\\d+)') | first | int }}"
-      count_zone_3: "{{ metrics_response.content | regex_search('count_zone_3 (\\d+)') | first | int }}"
-
-  - name: Determine the highest zone count
-    ansible.builtin.set_fact:
-      highest_metric: "{{ {'count_zone_1': count_zone_1, 'count_zone_2': count_zone_2, 'count_zone_3': count_zone_3} | dictsort(by='value') | last }}"
-
-  - name: Display the highest metric
-    ansible.builtin.debug:
-      msg: "The highest metric is {{ highest_metric }}"
