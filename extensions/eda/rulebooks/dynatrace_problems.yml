@@ -20,7 +20,9 @@
       condition: |
         event.title == "Too many golf balls" 
       action:
-        debug:
+        run_job_template:
+          name: "SwingSight | Dispatch RangeRoamer"
+          organization: Default
 
     - name: SwingSight request latency
       condition: |
