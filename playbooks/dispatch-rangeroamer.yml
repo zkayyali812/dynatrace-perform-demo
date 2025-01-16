@@ -45,6 +45,10 @@
           Content-Type: "application/json"
       register: comments
 
+    - name: Pause for 3 minutes
+      ansible.builtin.pause:
+        minutes: 3
+
     - name: Delete comments
       loop: "{{ comments.json.comments }}"
       ansible.builtin.uri:
