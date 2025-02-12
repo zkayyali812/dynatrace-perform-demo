@@ -5,7 +5,7 @@
     dt_tenant:
     dt_token:
     swingsight_url:
-
+    
   tasks:
     - name: Query the total_balls_hit metric from Dynatrace
       ansible.builtin.uri:
@@ -21,41 +21,41 @@
         url: "{{ swingsight_url }}/clear-data"
         method: GET
 
-    - name: Get problem from Dynatrace
-      vars:
-        title: Too many golf balls
-      ansible.builtin.uri:
-        url: https://{{ dt_tenant }}/api/v2/problems?problemSelector=text({{ title | urlencode }})
-        method: GET
-        headers:
-          Authorization: "Api-Token {{ dt_token }}"
-          Content-Type: "application/json"
-      register: problems
+    # - name: Get problem from Dynatrace
+    #   vars:
+    #     title: Too many golf balls
+    #   ansible.builtin.uri:
+    #     url: https://{{ dt_tenant }}/api/v2/problems?problemSelector=text({{ title | urlencode }})
+    #     method: GET
+    #     headers:
+    #       Authorization: "Api-Token {{ dt_token }}"
+    #       Content-Type: "application/json"
+    #   register: problems
 
-    - name: Set problem_id
-      ansible.builtin.set_fact:
-        problem_id: "{{ problems.json.problems[0].problemId }}"
+    # - name: Set problem_id
+    #   ansible.builtin.set_fact:
+    #     problem_id: "{{ problems.json.problems[0].problemId }}"
 
-    - name: Get problem comments
-      ansible.builtin.uri:
-        url: https://{{ dt_tenant }}/api/v2/problems/{{ problem_id }}/comments
-        method: GET
-        headers:
-          Authorization: "Api-Token {{ dt_token }}"
-          Content-Type: "application/json"
-      register: comments
+    # - name: Get problem comments
+    #   ansible.builtin.uri:
+    #     url: https://{{ dt_tenant }}/api/v2/problems/{{ problem_id }}/comments
+    #     method: GET
+    #     headers:
+    #       Authorization: "Api-Token {{ dt_token }}"
+    #       Content-Type: "application/json"
+    #   register: comments
 
-    - name: Pause for 3 minutes
-      ansible.builtin.pause:
-        minutes: 3
+    # - name: Pause for 3 minutes
+    #   ansible.builtin.pause:
+    #     minutes: 3
 
-    - name: Delete comments
-      loop: "{{ comments.json.comments }}"
-      ansible.builtin.uri:
-        url: https://{{ dt_tenant }}/api/v2/problems/{{ problem_id }}/comments/{{ item.id }}
-        method: DELETE
-        headers:
-          Authorization: "Api-Token {{ dt_token }}"
-          Content-Type: "application/json"
-        status_code:
-          - 204
+    # - name: Delete comments
+    #   loop: "{{ comments.json.comments }}"
+    #   ansible.builtin.uri:
+    #     url: https://{{ dt_tenant }}/api/v2/problems/{{ problem_id }}/comments/{{ item.id }}
+    #     method: DELETE
+    #     headers:
+    #       Authorization: "Api-Token {{ dt_token }}"
+    #       Content-Type: "application/json"
+    #     status_code:
+    #       - 204
