@@ -19,6 +19,7 @@
     - name: Update metrics
       ansible.builtin.uri:
         url: "{{ swingsight_url }}/clear-data"
+        validate_certs: false
         method: GET
 
     # - name: Get problem from Dynatrace
