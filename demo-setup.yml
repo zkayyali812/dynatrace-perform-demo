@@ -1,0 +1,256 @@
+---
+- name: Configure AAP Cluster for Dynatrace SwingSight Demo
+  hosts: localhost
+  gather_facts: false
+  vars:
+    aap_resource_name: aap
+    aap_namespace: aap
+
+    dynatrace_token: ""
+    dynatrace_tenant: ""
+    organization_name: "Default"
+
+    project_url: https://github.com/zkayyali812/dynatrace-perform-demo
+    project_name: SwingSight Demo
+    project_description: "Swingsight Demo Project"
+  tasks:
+    - name: Create SwingSight Deployment
+      block:
+        - name: Create SwingSight Deployment namespace
+          kubernetes.core.k8s:
+            name: swingsight
+            api_version: v1
+            kind: Namespace
+            state: present
+
+        - name: Create SwingSight Deployment
+          kubernetes.core.k8s:
+            wait: yes
+            definition:
+              apiVersion: apps/v1
+              kind: Deployment
+              metadata:
+                labels:
+                app: swingsight
+                annotations:
+                  metrics.dynatrace.com/scrape: "true"
+                  metrics.dynatrace.com/port: "5050"
+                name: swingsight
+                namespace: swingsight
+              spec:
+                replicas: 1
+                selector:
+                  matchLabels:
+                    app: swingsight
+                template:
+                  metadata:
+                    labels:
+                      app: swingsight
+                  spec:
+                    containers:
+                      - image: quay.io/zkayyali812/swingsight_metrics:latest
+                        imagePullPolicy: Always
+                        name: swingsight
+                        ports:
+                          - containerPort: 5050
+                        resources:
+                          requests:
+                            memory: "64Mi"
+                            cpu: "250m"
+                          limits:
+                            memory: "128Mi"
+                            cpu: "500m"
+
+        - name: Create SwingSight Service
+          kubernetes.core.k8s:
+            wait: yes
+            definition:
+              apiVersion: v1
+              kind: Service
+              metadata:
+                name: swingsight
+                namespace: swingsight
+              spec:
+                clusterIP: 172.30.232.185
+                clusterIPs:
+                - 172.30.232.185
+                internalTrafficPolicy: Cluster
+                ipFamilies:
+                - IPv4
+                ipFamilyPolicy: SingleStack
+                ports:
+                - port: 5050
+                  protocol: TCP
+                  targetPort: 5050
+                selector:
+                  app: swingsight
+                sessionAffinity: None
+                type: ClusterIP
+        
+        - name: Create SwingSight Route
+          kubernetes.core.k8s:
+            wait: yes
+            definition:
+              apiVersion: route.openshift.io/v1
+              kind: Route
+              metadata:
+                name: swingsight
+                namespace: swingsight
+              spec:
+                tls:
+                  insecureEdgeTerminationPolicy: Redirect
+                  termination: edge
+                to:
+                  kind: Service
+                  name: swingsight
+                  weight: 100
+                wildcardPolicy: None
+          register: _swingsight_route
+        
+        - name: Set swingsight Facts
+          ansible.builtin.set_fact:
+            swingsight_url: "https://{{ _swingsight_route.result.spec.host }}"
+
+    - name: Get OpenShift Resources
+      block:
+        - name: Get Gateway Route
+          kubernetes.core.k8s_info:
+            api_version: route.openshift.io/v1
+            kind: Route
+            name: "{{ aap_resource_name }}"
+            namespace: "{{ aap_namespace }}"
+          register: _gateway_route
+        
+        - name: Get Controller Route
+          kubernetes.core.k8s_info:
+            api_version: route.openshift.io/v1
+            kind: Route
+            name: "{{ aap_resource_name }}-controller"
+            namespace: "{{ aap_namespace }}"
+          register: _controller_route
+        
+        - name: Get Gateway Password
+          kubernetes.core.k8s_info:
+            api_version: v1
+            kind: Secret
+            name: "{{ aap_resource_name }}-admin-password"
+            namespace: "{{ aap_namespace }}"
+          register: _gateway_secret
+        
+        - name: Get Controller Password
+          kubernetes.core.k8s_info:
+            api_version: v1
+            kind: Secret
+            name: "{{ aap_resource_name }}-controller-admin-password"
+            namespace: "{{ aap_namespace }}"
+          register: _controller_secret
+        
+        - name: Set AAP Facts
+          ansible.builtin.set_fact:
+            gateway_url: "https://{{ _gateway_route.resources[0].status.ingress[0].host }}"
+            controller_url: "https://{{ _controller_route.resources[0].status.ingress[0].host }}"
+            gateway_password: "{{ _gateway_secret.resources[0].data.password | b64decode }}"
+            controller_password: "{{ _controller_secret.resources[0].data.password | b64decode }}"
+
+    - name: Configure AAP
+      vars:
+        module_inputs:
+          validate_certs: false
+          controller_username: admin
+        eda_module_inputs: "{{ module_inputs | combine({'organization_name': organization_name, 'controller_host': gateway_url, 'controller_password': gateway_password})}}"
+        controller_module_inputs: "{{ module_inputs | combine({'organization': organization_name, 'controller_host': controller_url, 'controller_password': controller_password})}}"
+      module_defaults:
+        ansible.eda.credential: "{{ eda_module_inputs }}"
+        ansible.eda.event_stream:  "{{ eda_module_inputs }}"
+        ansible.eda.decision_environment:  "{{ eda_module_inputs }}"
+        ansible.eda.project:  "{{ eda_module_inputs }}"
+        ansible.eda.rulebook_activation:  "{{ eda_module_inputs }}"
+        ansible.controller.project: "{{ controller_module_inputs }}"
+        ansible.controller.job_template: "{{ controller_module_inputs }}"
+      block:
+        - name: Create SwingSight Project
+          ansible.eda.project:
+            name: "{{ project_name }}"
+            description: "{{ project_description }}"
+            url: "{{ project_url }}"
+          
+        - name: Create Controller Project
+          ansible.controller.project:
+            name: "{{ project_name }}"
+            description: "{{ project_description }}"
+            scm_url: "{{ project_url }}"
+            scm_type: git
+
+        - name: Create EDA Dynatrace Credential
+          ansible.eda.credential:
+            name: Dynatrace Token
+            description: Dynatrace token for event-stream
+            inputs:
+              token: "{{ dynatrace_token }}"
+            credential_type_name: Token Event Stream
+          register: credential
+        
+        - name: Create RH AAP Credential
+          ansible.eda.credential:
+            name: RH AAP Credential 
+            description: Red Hat Ansible Automation Platform Credential
+            inputs:
+              host: "{{ eda_module_inputs.controller_host }}/api/controller/"
+              username: "{{ eda_module_inputs.controller_username }}"
+              password: "{{ eda_module_inputs.controller_password }}"
+            credential_type_name: Red Hat Ansible Automation Platform
+          register: credential
+        
+        - name: Create Dynatrace Event Stream
+          ansible.eda.event_stream:
+            name: Dynatrace Event Stream
+            credential_name: Dynatrace Token
+            forward_events: true
+        
+        - name: Create Decision Environment
+          ansible.eda.decision_environment:
+            name: AAP 2.5 Decision Environment
+            description: Supported decision environment
+            image_url: quay.io/acme_corp/base-de-25:latest
+        
+        - name: Create Rulebook Activation
+          ansible.eda.rulebook_activation:
+            name: SwingSight Events
+            description: Capture SwingSight Events
+            project_name: "{{ project_name }}"
+            rulebook_name: dynatrace_problems.yml
+            decision_environment_name: AAP 2.5 Decision Environment
+            eda_credentials:
+              - RH AAP Credential
+            event_streams:
+              - event_stream: Dynatrace Event Stream
+                source_index: 0
+
+        - name: Create Job Template (Dispatch RangeRoamer)
+          ansible.controller.job_template:
+            name: SwingSight | Dispatch RangeRoamer
+            description: Dispatches Virtual RangeRoamer
+            project: "{{ project_name }}"
+            playbook: playbooks/dispatch-rangeroamer.yml
+            execution_environment: Default execution environment
+            inventory: Demo Inventory
+            extra_vars:
+              dt_tenant: "{{ dynatrace_tenant }}"
+              dt_token: "{{ dynatrace_token }}"
+              swingsight_url: "{{ swingsight_url }}"
+      
+        - name: Create Job Template (Create Problem)
+          ansible.controller.job_template:
+            name: SwingSight | Create Problem
+            description: Simulates Dynatrace problem to be caught by EDA
+            project: "{{ project_name }}"
+            playbook: playbooks/create-problem.yml
+            execution_environment: Default execution environment
+            inventory: Demo Inventory
+            extra_vars:
+              dt_tenant: "{{ dynatrace_tenant }}"
+              dt_token: "{{ dynatrace_token }}"
+              swingsight_url: "{{ swingsight_url }}"
+              prb_latency: false
+              prb_outage: false
+              prb_swingsight: true
