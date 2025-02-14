@@ -10,8 +10,10 @@
   rules:
 
     - name: SwingSight dispatch RangeRoamer
-      condition: |
-        event.title == "Too many golf balls" 
+      condition:
+        any:
+          - event.title == "Too many golf balls" 
+          - event.payload.ProblemTitle == "Too many golf balls"
       action:
         run_job_template:
           name: "SwingSight | Dispatch RangeRoamer"
